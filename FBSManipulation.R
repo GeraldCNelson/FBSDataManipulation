@@ -20,7 +20,7 @@ library(dplyr)
 library(reshape2)
 library(ggplot2)
 
-setwd("~/Documents/workspace/nutrientModeling")
+setwd("~/Documents/workspace/FBSDataManipulation")
 
 # Info for the basic worksheet ---------------------------------------
 
@@ -28,32 +28,44 @@ userName <- "Gerald Nelson"
 dataSource <- "http://faostat3.fao.org/download/FB/FBS/E"
 dateDownloaded <- "8 June 2015"
 dateCreated <- Sys.time()
-#file names and locations
-ctyFileName <- "data/FBSData/FAOCountryNameCodeLookup.xlsx"
-#FBS data
-FBSDataFileName <- "data/FBSData/FoodBalanceSheets_E_All_Data.csv"
-FBSCommodityInfoFileName <-"data/FBSData/FAOCommodityCodeDefinitions.xlsx"
-#create a worksheet with the list of FBS food items by code, name, definition, and IMPACT commodity code
+# file names and locations
+ctyFileName <- "data/FAOCountryNameCodeLookup.xlsx"
+FBSDataFileName <- "data/FoodBalanceSheets_E_All_Data.csv"
+FBSdataZipFileLocation <- c("data/FoodBalanceSheets_E_All_Data.csv.zip")
+FBSdataZipFileName <- c("FoodBalanceSheets_E_All_Data.csv")
+FBSCommodityInfoFileName <-"data/FAOCommodityCodeDefinitions.xlsx"
+
+# Read in the FBS data
+# Read in a worksheet with the list of FBS food items by code, name, definition, and IMPACT commodity code
 FBScommods <- read.xlsx(FBSCommodityInfoFileName, 
                         sheet = 1,
                         startRow = 2,
                         colNames = FALSE)
-colnames(FBScommods) <- c("Item.Code", "Item.Name", "Definition","IMPACTCode")
-#read in file with country names and codes
+colnames(FBScommods) <- c("ItemCode", "ItemName", "Definition","IMPACTCode")
+
+# Read in a worksheet with country names and codes
 ctyNames <- read.xlsx(ctyFileName, 
                       sheet = 1,
                       startRow = 2,
                       colNames = FALSE)
 colnames(ctyNames) <- c("Country", "Official.name", "ISO3","ISO2","UNI", "UNDP","FAOSTAT","GAUL")
-#read in the FBS data
-FBSDat <- read.csv(FBSDataFileName, stringsAsFactors=FALSE)
+
+# Read in the FBS data
+FBSDat <- read.csv(unz(description = FBSdataZipFileLocation, file=FBSdataZipFileName), stringsAsFactors=FALSE)
 #convert all the NAs to 0
 #FBSDat[is.na(FBSDat)] <- 0
 
+# remove years before 2005
+FBSDat <- FBSDat[which(FBSDat$Year > 2005),]
+
+# save aggregations of countries
+FBSDat.countryAggs <- subset(FBSDat,!(Country %in% ctyNames$Country))
+
 #get rid of rows that are aggregations of countries
 FBSDat <- subset(FBSDat,Country %in% ctyNames$Country)
-#get rid of rows that are aggregations of commodities
-commodRowsToRemove <- c("Animal fats + (Total)", 
+
+# Create separate data frame for aggregations of commodities
+aggregates <- c("Animal fats + (Total)", 
                         "Cereals - Excluding Beer + (Total)", 
                         "Meat + (Total)", 
                         "Milk - Excluding Butter + (Total)", 
@@ -77,17 +89,15 @@ commodRowsToRemove <- c("Animal fats + (Total)",
                         "Fruits - Excluding Wine + (Total)", 
                         "Grand Total + (Total)", 
                         "Miscellaneous + (Total)")
-FBSDat <- subset(FBSDat,!(Item %in% commodRowsToRemove))
-
-#remove years before 2005
-columnsToKeep <- c("Country.Code","Country","Item.Code" ,"Item" ,"Element.Code","Element",
-                   "Y2006","Y2007","Y2008","Y2009","Y2010","Y2011","Y2012","Y2013")
-FBSDat <- FBSDat[ , columnsToKeep]
+FBSDat.aggs <- subset(FBSDat,(Item %in% aggregates))
+FBSDat.commods <- subset(FBSDat,!(Item %in% aggregates))
+FBSDat.commods <- merge (FBSDat.commods,FBScommods, by = "ItemCode", sort = FALSE)
 
 #extract the rows with kcal/capita/day data; fixed=TRUE is needed so the string is interpreted as a pure string
-FBSDat.kcals <- FBSDat[grep("Food supply (kcal/capita/day)",FBSDat$Element, fixed=TRUE),]
+FBSDat.kcals <- FBSDat.commods[grep("kcal/capita/day",FBSDat.commods$Unit, fixed=TRUE),]
+
 #include IMPACT code assignment
-FBSDat.kcals <- merge (FBSDat.kcals,FBScommods, by.x = "Item.Code", sort = FALSE)
+FBSDat.kcals <- merge (FBSDat.kcals,FBScommods,  by = "ItemCode", sort = FALSE)
 #add column that creates an IMPACT fish code
 FBSDat.kcals$IMPACTCodewFish <- FBSDat.kcals$IMPACTCode
 FBSDat.kcals$IMPACTCodewAlcy <- FBSDat.kcals$IMPACTCode
