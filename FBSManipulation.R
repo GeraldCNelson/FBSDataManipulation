@@ -33,7 +33,7 @@ ctyFileName <- "data/FAOCountryNameCodeLookup.xlsx"
 FBSDataFileName <- "data/FoodBalanceSheets_E_All_Data.csv"
 FBSdataZipFileLocation <- c("data/FoodBalanceSheets_E_All_Data.csv.zip")
 FBSdataZipFileName <- c("FoodBalanceSheets_E_All_Data.csv")
-FBSCommodityInfoFileName <-"data/FAOCommodityCodeDefinitions.xlsx"
+FBSCommodityInfoFileName <-"data/FBStoIMPACTlookupV1.xlsx"
 
 # Read in the FBS data
 # Read in a worksheet with the list of FBS food items by code, name, definition, and IMPACT commodity code
